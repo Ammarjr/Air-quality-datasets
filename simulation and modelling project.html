@@ -1,0 +1,225 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[1]:
+
+
+import numpy as np
+import pandas as pd
+import matplotlib
+import matplotlib.pyplot as plt
+
+
+# In[2]:
+
+
+# Air Quality datasets 
+# https://aqs.epa.gov/aqsweb/airdata/download_files.html#Raw
+get_ipython().system('wget https://aqs.epa.gov/aqsweb/airdata/hourly_42602_2017.zip')
+get_ipython().system('unzip hourly_42602_2017.zip')
+
+
+# In[3]:
+
+
+get_ipython().system('ls')
+
+
+# In[4]:
+
+
+# Load dataset 
+aq_data = pd.read_csv('./hourly_42602_2017.csv')
+# aq_data = pd.read_csv('/Users/kkbankol@us.ibm.com/Downloads/hourly_42602_2017.csv')
+
+
+# In[5]:
+
+
+# View first 5 rows
+aq_data.head()
+
+
+# In[6]:
+
+
+# View titles of all columns
+aq_data.columns
+
+
+# In[7]:
+
+
+aq_data['Sample Measurement'].describe()
+
+
+# In[8]:
+
+
+# print list of all unique monitoring site numbers
+aq_data['Site Num'].unique()
+
+
+# In[9]:
+
+
+# get number of aq sites in a single state, "California"
+aq_data.loc[aq_data['State Name'] == "California"]['Site Num'].unique().shape
+
+
+# In[10]:
+
+
+# show data associated 
+los_angeles_aq = aq_data.loc[                      (aq_data['Longitude'] > -118.455937) &                      (aq_data['Longitude'] < -117.842111) &                      (aq_data['Latitude'] > 33.764836) &                      (aq_data['Latitude'] < 34.173729) ]
+los_angeles_aq
+
+
+# In[11]:
+
+
+import datetime as dt
+
+# foo = ((los_angeles_aq['Date Local'].astype(str) + " " + los_angeles_aq['Time Local']) - dt.datetime(1970,1,1)).dt.total_seconds()
+# los_angeles_aq['Timestamp'] = (pd.to_datetime((los_angeles_aq['Date Local'].astype(str) + "-" + los_angeles_aq['Time Local']))).dt.total_seconds()
+los_angeles_aq['Timestamp'] = (pd.to_datetime((los_angeles_aq['Date Local'].astype(str) + "-" + los_angeles_aq['Time Local'])) - dt.datetime(1970,1,1)).dt.total_seconds()
+# .date.astype('int64')
+
+# los_angeles_aq['Date']
+
+
+# In[12]:
+
+
+los_angeles_aq['Timestamp']
+# import time, datetime
+# s = los_angeles_aq.iloc[0]['Date Local'] + '-' + los_angeles_aq.iloc[0]['Time Local']
+# int(time.mktime(datetime.datetime.strptime(s, "%Y-%d-%m-%H:%M").timetuple()))
+# los_angeles_aq['Timestamp'] = pd.to_datetime([los_angeles_aq['Date Local'] + los_angeles_aq['Time Local'] ])
+# los_angeles_aq.iloc[0]['Date Local'] + los_angeles_aq.iloc[0]['Time Local']
+
+
+# In[13]:
+
+
+plt.ylabel('Air Quality Level')
+plt.xlabel('Timestamp')
+plt.legend( los_angeles_aq['Site Num'].unique().tolist(), loc='upper left')
+# plt.legend( los_angeles_aq['Site Num'].unique().tolist() )
+# colors = [plt.cm.spectral(i) for i in np.linspace(0, 1, los_angeles_aq['Site Num'].unique().shape[0])]
+# ax.set_prop_cycle('color', colors)
+los_angeles_aq_trimmed = los_angeles_aq
+for site in los_angeles_aq['Site Num'].unique():
+    plt.plot( los_angeles_aq_trimmed.loc[los_angeles_aq_trimmed['Site Num'] == site]['Timestamp'], los_angeles_aq_trimmed.loc[los_angeles_aq_trimmed['Site Num'] == site]['Sample Measurement'])
+
+
+# In[14]:
+
+
+# Print aq changes throughout the year, and create a seperate chart for each air quality monitoring site
+ncols = 3
+nrows = 4 #los_angeles_aq['Site Num'].unique().shape[0]
+plt.subplots(nrows, ncols, figsize=(15,15))
+idx = 1
+data_summary = los_angeles_aq['Sample Measurement'].describe()
+for site in los_angeles_aq['Site Num'].unique():
+    plt.ylim(0, data_summary['max'] * 1.25)
+    plt.subplot(nrows, ncols, idx)
+    plt.plot( los_angeles_aq.loc[los_angeles_aq['Site Num'] == site]['Timestamp'], los_angeles_aq.loc[los_angeles_aq['Site Num'] == site]['Sample Measurement'])
+    plt.title("site " + str(site))
+    idx = idx + 1
+
+
+# In[15]:
+
+
+# extract day of week
+import datetime
+los_angeles_aq['Weekday'] = pd.to_datetime(los_angeles_aq['Date Local']).dt.day_name()
+
+
+# In[16]:
+
+
+# Print aq changes throughout the day from 0:00 - 24:00. Break into seperate plots by weekday
+nrows = 4
+ncols = 2
+plt.subplots(nrows, ncols, figsize=(15,15))
+weekdays = [ 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday' ]
+idx = 1
+values_by_weekday = {}
+for day in weekdays:
+    plt.subplot(nrows, ncols, idx)
+    # for loop 0:00 - 24:00
+    # sum measurements where weekday == and time ==
+    times = []
+    for hour in range(0, 23):
+        if hour <= 9:
+          time = "0" + str(hour) + ":00"
+        else:
+          time = str(hour) + ":00"
+        # select subset matching given weekday and hour
+        subset = los_angeles_aq.loc[ (los_angeles_aq['Weekday'] == day) & (los_angeles_aq['Time Local'] == time) ]['Sample Measurement']
+        #         print(subset.mean())
+        times.append(subset.sum())
+    values_by_weekday[day] = times
+    plt.plot( times )
+    plt.title(day)
+    idx = idx + 1
+
+
+# # the problem statements
+# Air pollution From smog hanging over cities to smoke inside the home, air pollution poses a major threat to health and climate. Ambient air pollution accounts for an estimated 4.2 million deaths per year due to stroke, heart disease, lung cancer, acute and chronic respiratory diseases. The main problem statement of this project is about the threat of air pollution.
+
+# # general objective of the project 
+# The general objectives of this project is to analyse the air quality of California and its regions.
+
+# # Outline any three specific objectives of the project 
+# The 3 specific objectives of the projects are;
+# 
+# 1.to load air quality data set record presented by aq-data.
+# 
+# 2.to get a number of aq sites in a single state of california such as in (Los-angels)
+# 
+# 3.to potray in a chart the air quality level and timestamp of los-angels presented by aq-data.
+
+# # Research questions for this project.
+# 
+# 1.What is data set of air quality of Californi?
+# 
+# 2. what is Los-Angeles Air quality timestamp and measurement?
+# 
+# 3.what is  Los-Angeles Air quality throughout the year?
+# 
+
+# # Identify & note all the models developed.
+# 
+# Initially, we analyse air quality datasets, we load dataset of air quality data and viewed first 5 rows of aq-data.After,
+# we viwed the quality of of all column and describe its sample measurement.Then we printed all unique monitoring side and
+# got number of aq sites in a single state (California).we viewed aq-data of Los-Angeles and imported datetime to it. It portrayed us the 
+# chart of air quality and timestamp of Los-Angeles.And then printed aq changes throughout the year, and
+# create a seperate chart for each air quality monitoring site of Los-Angeles and extract day of week and 
+# Print aq changes throughout the day from 0:00 - 24:00. Break into seperate plots by weekday.
+
+# # What new ideas were proposed in this project? 
+# 
+# the new ideas proposed in this project are;
+# 1. The air quality changes throughout the year of Los-Angeles.
+# 2. The aq changes throughout the day from 0:00 - 24:00.
+
+# # Develop the conclusion of the project.
+#     The project finally come up with more accurate air quality data and its time frame,
+#     showing all states and units of measurement for each, there by giving an easy hint of analysing data measurement and 
+#     frequent changes of air quality.
+
+# # future challenges in the project are:
+# 
+# 1. maintaining authenticity of aq data as the data grows.
+# 2. analysing the air quality of other states.
+# 3. project overspendings.
+
+# In[ ]:
+
+
+
+
